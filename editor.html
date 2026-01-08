@@ -1,480 +1,189 @@
 <!DOCTYPE html>
-<html lang="en-us">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Uniscript IDE</title>
-    <link rel="icon" href="../US.ico">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uniscript | The Multi-Engine Meta-Language</title>
+    <link rel="icon" href="US.ico">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <style>
-        :root { --bg: #0d1117; --toolbar: #161b22; --accent: #238636; --text: #c9d1d9; }
-        body { margin: 0; display: flex; height: 100vh; background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; overflow: hidden; }
-        
-        #main-wrapper { display: flex; width: 100%; height: calc(100% - 40px); margin-top: 40px; }
-        #editor-container { width: 50%; height: 100%; }
-        #preview-wrapper { width: 50%; display: flex; flex-direction: column; border-left: 1px solid #30363d; }
-        #iframe-host { flex: 2; background: white; }
-        #console-host { flex: 1; background: #0d1117; padding: 10px; font-family: monospace; font-size: 12px; border-top: 1px solid #30363d; overflow-y: auto; color: #ff7b72; }
-
-        #toolbar { position: fixed; top: 0; left: 0; width: 100%; height: 40px; background: var(--toolbar); display: flex; align-items: center; padding: 0 10px; border-bottom: 1px solid #30363d; z-index: 100; }
-        .logo { font-weight: 900; color: #58a6ff; margin-right: 20px; letter-spacing: 1px; }
-        .btn { background: #21262d; border: 1px solid #30363d; color: #c9d1d9; cursor: pointer; display: flex; align-items: center; padding: 5px 12px; font-size: 12px; margin-right: 8px; border-radius: 6px; transition: 0.2s; }
-        .btn:hover { background: #30363d; border-color: #8b949e; }
-        .btn-primary { background: #238636; border-color: rgba(27,31,35,0.15); color: white; }
-        .btn-primary:hover { background: #2ea043; }
-
-        #progress-container { position: absolute; bottom: 0; left: 0; width: 100%; height: 3px; z-index: 200; pointer-events: none; }
-        #progress-bar { width: 0%; height: 100%; background: #58a6ff; }
-
-        .btn i {
-    color: #8b949e;
-    transition: 0.2s;
-}
-
-.btn:hover i {
-    color: #58a6ff;
-}
-
-
-
-
-
-.dropdown-menu {
-    display: none;
-    position: fixed;
-    top: 45px;
-    background: #161b22;
-    border: 1px solid #30363d;
-    border-radius: 6px;
-    min-width: 250px;
-    box-shadow: 0 12px 28px rgba(0,0,0,0.6);
-    z-index: 9999;
-    padding: 8px 0;
-}
-
-.dropdown-item {
-    width: 100%;
-    padding: 12px 16px;
-    background: transparent;
-    border: none;
-    color: #c9d1d9;
-    text-align: left;
-    cursor: pointer;
-    font-size: 13px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    transition: background 0.2s;
-}
-
-.dropdown-item:hover {
-    background: #238636;
-    color: white;
-}
-
-.dropdown-item i {
-    font-size: 18px;
-    color: #8b949e;
-}
-
-.dropdown-item:hover i {
-    color: white;
-}
-
-.show-menu {
-    display: block !important;
-}
-
-    </style>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-</head>
-<body><div id="menu-exemplos" class="dropdown-menu"></div>
-
-    <div id="toolbar">
-        <img src="../US.png" style="width: 40px; height: 40px">
-        <span class="logo">UNISCRIPT</span>
-        <button class="btn btn-primary" onclick="handleCompile('preview')"><i class="material-icons" style="font-size:16px; margin-right:5px">play_arrow</i> Compile & Run preview</button>
-        <button class="btn" onclick="handleCompile('download')"><i class="material-icons" style="font-size:16px; margin-right:5px">download</i> Compile to .html</button>
-        <button class="btn" onclick="saveProject()">
-    <i class="material-icons" style="font-size:16px; margin-right:5px">sd_storage</i> Save Project .us
-</button>
-
-<button class="btn" onclick="document.getElementById('fileInput').click()">
-    <i class="material-icons" style="font-size:16px; margin-right:5px">folder_open</i> Load Project
-</button>
-
-<button class="btn" id="btn-exemplos" onclick="toggleMenu(event)">
-            <i class="material-icons" style="font-size:16px; margin-right:5px">auto_awesome</i> 
-            Examples
-        </button>
-<button class="btn" onclick = "window.location.href = '../index.html'"><i class="material-icons" style="font-size:16px; margin-right:5px">⏎</i>Return</button>
-<input type="file" id="fileInput" style="display:none" accept=".us" onchange="loadProject(this)">
-    </div>
-
-    <div id="progress-container"><div id="progress-bar"></div></div>
-
-    <div id="main-wrapper">
-        <div id="editor-container"></div>
-        <div id="preview-wrapper">
-            <div id="iframe-host"></div>
-            <div id="console-host"></div>
-        </div>
-    </div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
-    <script src="bundle.js"></script> 
-
-    <script>
-        
-        let editor;
-
-        const examples = [
-            
-            {
-    name: "All languages guessing",
-    code: `<!uniscript start!>\n# Guess the Number #\n<!uniscript main, uniscript, content = <\nconfig title = \"Guess The Number\"\nconfig execution = {\n    start: \"ui\", then: \"skin\", then: \"coreJS\", then: \"engineTS\", end: \"logicPy\"\n}\n>>;\n<!uniscript ui, html, content = <\n<div id=\"game-card\">\n    <h1>Guess the Number</h1>\n    <input type=\"number\" id=\"inputGuess\" placeholder=\"??\">\n    <button id=\"btnCheck\">Check</button>\n    <div id=\"feedback\">Good luck!</div>\n    <div id=\"counter\">Attempts: 0</div>\n</div>\n>>;\n<!uniscript skin, css, content = <\nimport \"game-card\" from \"ui\";\n#game-card { max-width: 300px; margin: auto; padding: 20px; background: #222; color: white; border-radius: 15px; text-align: center; }\n#btnCheck { width: 100%; padding: 10px; background: aqua; cursor: pointer; border: none; }\n>>;\n<!uniscript coreJS, js, content = <\nimport \"inputGuess\" from \"ui\";\nwindow.clearInput = () => { inputGuess.value = \"\"; inputGuess.focus(); };\n>>;\n<!uniscript engineTS, ts, content = <\nimport \"counter\" from \"ui\";\nwindow.gameState = { secretNumber: Math.floor(Math.random() * 100) + 1, attempts: 0 };\nwindow.updateCounter = () => {\n    window.gameState.attempts++;\n    counter.innerText = \"Attempts: \" + window.gameState.attempts;\n};\n>>;\n<!uniscript logicPy, py, content = <\nimport \"inputGuess\" from \"ui\";\nimport \"btnCheck\" from \"ui\";\nimport \"feedback\" from \"ui\";\n\ndef check_number(ev):\n    guess = int(inputGuess.value)\n    secret = window.gameState.secretNumber\n    window.updateCounter()\n    if guess == secret:\n        feedback.text = \"🎯 Correct!\"\n        btnCheck.disabled = True\n    elif guess > secret:\n        feedback.text = \"Choose a smaller number\"\n    elif guess < secret:\n        feedback.text = \"Choose a larger number\"\n    else:\n        feedback.text = \"Try again!\"\n    window.clearInput()\n\nbtnCheck.bind(\"click\", check_number)\n>>;\n<!uniscript end!>`,
-},
-
-{
-    name: "TS Snake Game",
-    code: "<!uniscript start!>\n<!uniscript main, uniscript, content = <\nconfig title = \"Uniscript Snake\"\nconfig execution = {\n    start: \"screen\", then: \"style\", then: \"engine\"\n}\ndeclare speed = 100\n>>;\n\n<!uniscript screen, html, content = <\n<div id=\"game_container\">\n    <div id=\"scoreBoard\">Score: 0</div>\n    <canvas id=\"gameCanvas\" width=\"400\" height=\"400\"></canvas>\n    <div id=\"msg\">Press Arrow Keys to Start</div>\n</div>\n>>;\n\n<!uniscript style, css, content = <\nimport \"game_container\" from \"screen\";\n#game_container { display: flex; flex-direction: column; align-items: center; background: #1a1a1a; padding: 20px; border-radius: 10px; font-family: sans-serif; }\n#gameCanvas { border: 5px solid #333; background: #000; }\n#scoreBoard { color: #4af; font-size: 24px; margin-bottom: 10px; }\n#msg { color: #888; margin-top: 10px; }\n>>;\n\n<!uniscript engine, ts, content = <\nimport \"gameCanvas\" from \"screen\";\nimport \"scoreBoard\" from \"screen\";\nimport \"msg\" from \"screen\";\n\nconst ctx = gameCanvas.getContext(\"2d\");\nlet snake = [{x: 200, y: 200}];\nlet food = {x: 0, y: 0};\nlet dx = 0; let dy = 0;\nlet score = 0;\n\nfunction randomFood() {\n    food.x = Math.floor(Math.random() * 20) * 20;\n    food.y = Math.floor(Math.random() * 20) * 20;\n}\n\nfunction draw() {\n    ctx.fillStyle = \"black\";\n    ctx.fillRect(0, 0, 400, 400);\n    ctx.fillStyle = \"#ff4444\";\n    ctx.fillRect(food.x, food.y, 18, 18);\n    ctx.fillStyle = \"#44ff44\";\n    snake.forEach(part => ctx.fillRect(part.x, part.y, 18, 18));\n}\n\nfunction move() {\n    const head = {x: snake[0].x + dx, y: snake[0].y + dy};\n    snake.unshift(head);\n    if(head.x === food.x && head.y === food.y) {\n        score += 10;\n        scoreBoard.innerText = \"Score: \" + score;\n        randomFood();\n    } else {\n        snake.pop();\n    }\n}\n\nfunction checkGameOver() {\n    const head = snake[0];\n    if(head.x < 0 || head.x >= 400 || head.y < 0 || head.y >= 400) return true;\n    for(let i = 1; i < snake.length; i++) {\n        if(snake[i].x === head.x && snake[i].y === head.y) return true;\n    }\n    return false;\n}\n\nwindow.addEventListener(\"keydown\", e => {\n    msg.style.display = \"none\";\n    if(e.key === \"ArrowUp\" && dy === 0) { dx = 0; dy = -20; }\n    if(e.key === \"ArrowDown\" && dy === 0) { dx = 0; dy = 20; }\n    if(e.key === \"ArrowLeft\" && dx === 0) { dx = -20; dy = 0; }\n    if(e.key === \"ArrowRight\" && dx === 0) { dx = 20; dy = 0; }\n});\n\nrandomFood();\nfunction loop() {\n    if(checkGameOver()) {\n        alert(\"Game Over! Score: \" + score);\n        location.reload();\n        return;\n    }\n    move();\n    draw();\n    setTimeout(loop, window.speed);\n}\nloop();\n>>;\n<!uniscript end!>"
-},
-
-{
-    name: "Python Calculator",
-    code: "<!uniscript start!>\n<!uniscript main, uniscript, content = <\nconfig title = \"PyCalc Uniscript\"\nconfig execution = {\n    start: \"ui\", then: \"design\", end: \"logic\"\n}\n>>;\n\n<!uniscript ui, html, content = <\n<div id=\"calc_box\">\n    <input type=\"text\" id=\"display\" readonly value=\"\">\n    <div class=\"grid\">\n        <button class=\"num\">7</button><button class=\"num\">8</button><button class=\"num\">9</button><button class=\"op\">/</button>\n        <button class=\"num\">4</button><button class=\"num\">5</button><button class=\"num\">6</button><button class=\"op\">*</button>\n        <button class=\"num\">1</button><button class=\"num\">2</button><button class=\"num\">3</button><button class=\"op\">-</button>\n        <button id=\"clear\">C</button><button class=\"num\">0</button><button id=\"equal\">=</button><button class=\"op\">+</button>\n    </div>\n</div>\n>>;\n\n<!uniscript design, css, content = <\nimport \"calc_box\" from \"ui\";\n#calc_box { background: #222; padding: 20px; border-radius: 10px; width: 220px; margin: auto; }\n#display { width: 100%; height: 40px; margin-bottom: 10px; text-align: right; font-size: 20px; background: #ddd; border: none; }\n.grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }\nbutton { height: 40px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; }\n.num { background: #444; color: white; }\n.op { background: #f90; color: white; }\n#clear { background: #f44; color: white; }\n#equal { background: #4a4; color: white; }\n>>;\n\n<!uniscript logic, py, content = <\nimport \"display\" from \"ui\";\nfrom browser import document, bind\n\ndef add_char(ev):\n    display.value += ev.target.text\n\ndef clear_screen(ev):\n    display.value = \"\"\n\ndef calculate(ev):\n    try:\n        # O Python avalia a string do display\n        result = eval(display.value)\n        display.value = str(result)\n    except:\n        display.value = \"Error\"\n\n# Vinculando eventos aos botões\nfor btn in document.select(\".num\"):\n    btn.bind(\"click\", add_char)\n\nfor btn in document.select(\".op\"):\n    btn.bind(\"click\", add_char)\n\ndocument[\"ui_clear\"].bind(\"click\", clear_screen)\ndocument[\"ui_equal\"].bind(\"click\", calculate)\n>>;\n<!uniscript end!>"
-},
-
-{
-    name: "JS Flip a Coin",
-    code: "<!uniscript start!>\n# Game of Luck: Flip a Coin #\n<!uniscript main, uniscript, content = <\nconfig title = \"Flip a Coin\"\nconfig execution = {\n    start: \"view\", then: \"style\", end: \"control\"\n}\n>>;\n\n<!uniscript view, html, content = <\n<div id=\"app\">\n    <h1>Flip a Coin!</h1>\n    <div id=\"coin\">?</div>\n    <button id=\"btnFlip\">Toss Coin</button>\n    <h2 id=\"resultText\">Try your luck!</h2>\n</div>\n>>;\n\n<!uniscript style, css, content = <\nimport \"app\" from \"view\";\n#app { text-align: center; font-family: 'Segoe UI', sans-serif; background: #1a1b26; color: white; padding: 40px; border-radius: 20px; }\n#coin { \n    width: 100px; height: 100px; background: #eab308; border-radius: 50%; \n    margin: 20px auto; display: flex; align-items: center; justify-content: center; \n    font-size: 40px; font-weight: bold; color: #713f12; border: 5px solid #ca8a04;\n    transition: transform 0.6s;\n}\n#btnFlip { \n    padding: 10px 20px; font-size: 18px; cursor: pointer; \n    background: #3b82f6; border: none; color: white; border-radius: 8px; \n}\n#btnFlip:hover { background: #2563eb; }\n.spinning { transform: rotateY(1800deg); }\n>>;\n\n<!uniscript control, js, content = <\nimport \"coin\" from \"view\";\nimport \"btnFlip\" from \"view\";\nimport \"resultText\" from \"view\";\n\nbtnFlip.onclick = () => {\n    // Trigger spin animation\n    coin.classList.add(\"spinning\");\n    resultText.innerText = \"Flipping...\";\n    btnFlip.disabled = true;\n\n    setTimeout(() => {\n        const isHeads = Math.random() > 0.5;\n        const result = isHeads ? \"HEADS\" : \"TAILS\";\n        \n        coin.innerText = result[0]; // H or T\n        resultText.innerText = \"Result: \" + result;\n        \n        // Reset animation class for next turn\n        coin.classList.remove(\"spinning\");\n        btnFlip.disabled = false;\n    }, 600);\n};\n>>;\n<!uniscript end!>"
-},
-
-{
-    name: "HTML & CSS Modern Glassmorphism Card",
-    code: "<!uniscript start!>\n# Beautiful Glassmorphism UI Design #\n<!uniscript main, uniscript, content = <\nconfig title = \"Modern UI Design\"\nconfig execution = {\n    start: \"layout\", end: \"theme\"\n}\n>>;\n\n<!uniscript layout, html, content = <\n<div class=\"background\">\n    <div class=\"circle\"></div>\n    <div class=\"circle\"></div>\n    <div id=\"card\">\n        <div id=\"profile_pic\"></div>\n        <h1 id=\"name\">You</h1>\n        <p id=\"bio\">Uniscript Programmer & Tech Enthusiast</p>\n        <div class=\"stats\">\n            <div class=\"stat_item\"><strong>1.2k</strong><br>Commits</div>\n            <div class=\"stat_item\"><strong>85</strong><br>Projects</div>\n        </div>\n        <button id=\"btn_follow\">View Portfolio</button>\n    </div>\n</div>\n>>;\n\n<!uniscript theme, css, content = <\nimport \"card\" from \"layout\";\nimport \"profile_pic\" from \"layout\";\n\nbody { margin: 0; padding: 0; background: #0f172a; overflow: hidden; }\n\n.background { \n    height: 100vh; display: flex; align-items: center; justify-content: center; \n    position: relative; overflow: hidden; \n}\n\n.circle {\n    position: absolute; width: 300px; height: 300px; \n    background: linear-gradient(#2563eb, #7c3aed); \n    border-radius: 50%; z-index: 1;\n}\n\n.circle:nth-child(1) { top: 10%; left: 20%; }\n.circle:nth-child(2) { bottom: 10%; right: 20%; background: linear-gradient(#db2777, #7c3aed); }\n\n#card {\n    z-index: 2; width: 320px; padding: 30px; border-radius: 20px;\n    background: rgba(255, 255, 255, 0.05);\n    backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);\n    border: 1px solid rgba(255, 255, 255, 0.1);\n    box-shadow: 0 25px 50px rgba(0,0,0,0.3);\n    text-align: center; color: white; font-family: 'Segoe UI', sans-serif;\n}\n\n#profile_pic {\n    width: 100px; height: 100px; margin: 0 auto 20px;\n    background: url('https://cdn-icons-png.flaticon.com/512/606/606200.png') center/cover;\n    border-radius: 50%; border: 3px solid rgba(255,255,255,0.2); background-color: rgba(255,255,255,0.1);\n}\n\n#name { margin: 10px 0 5px; font-size: 24px; }\n#bio { color: #94a3b8; font-size: 14px; margin-bottom: 25px; }\n\n.stats { display: flex; justify-content: space-around; margin-bottom: 25px; }\n.stat_item { font-size: 12px; color: #cbd5e1; }\n.stat_item strong { font-size: 18px; color: white; }\n\n#btn_follow {\n    width: 100%; padding: 12px; border-radius: 10px; border: none;\n    background: white; color: #0f172a; font-weight: bold; cursor: pointer;\n    transition: 0.3s;\n}\n\n#btn_follow:hover { transform: scale(1.05); background: #e2e8f0; }\n>>;\n<!uniscript end!>"
-}];
-        
-        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
-
-        require(['vs/editor/editor.main'], function() {
-
-
-            
-            monaco.editor.defineTheme('uniscript-neon', {
-                base: 'vs-dark',
-                inherit: true,
-                rules: [
-
-                    { token: 'keyword.uniscript', foreground: 'FF9D00', fontStyle: 'bold' }, 
-                    { token: 'type.uniscript', foreground: 'FBFF00' },
-                    { token: 'operator.uniscript', foreground: 'FF9D00' },
-
-                    { token: 'keyword', foreground: 'ff7b72', fontStyle: 'bold' },
-                    { token: 'type.html', foreground: 'ffa500' },
-                    { token: 'type.css', foreground: '00ffff' },
-                    { token: 'type.js', foreground: 'f2cc60' },
-                    
-                    { token: 'tag.html', foreground: '1667ad' },
-                    { token: 'attr.html', foreground: '79c0ff' },
-                    
-                    { token: 'selector.css', foreground: 'DCDCAA' },
-                    { token: 'prop.css', foreground: '79c0ff' },
-                    
-                    { token: 'keyword.js', foreground: '1667ad', fontStyle: 'bold'},
-                    { token: 'ident.js', foreground: '79c0ff' },
-
-
-                    { token: 'type.py', foreground: '00FFFF', fontStyle: 'bold' },
-                    { token: 'keyword.py', foreground: '90EE90', fontStyle: 'bold' },
-                    { token: 'identifier.py', foreground: 'E0FFE0' },
-                    { token: 'function.py', foreground: '7FFFD4' },
-
-                    
-                    { token: 'string', foreground: 'B6753E' },
-                    { token: 'number', foreground: '79c0ff' },
-                    { token: 'comment', foreground: '98C379', fontStyle: 'italic' },
-                    { token: 'delimiter', foreground: 'FFD700' },
-                    {token: '', foreground: '#ffffff'},
-                    { token: 'delimiter.html', foreground: '#808080' },
-
-                    { token: 'keyword.uniscript', foreground: 'FF6B6B', fontStyle: 'bold' },
-
-                    { token: 'type.ts', foreground: 'C586C0', fontStyle: 'bold' },
-                    { token: 'keyword.ts', foreground: 'C586C0', fontStyle: 'bold' },
-                    { token: 'ident.ts', foreground: '9CDCFE' },
-                    { token: 'type.identifier.ts', foreground: '4EC9B0' },
-                ],
-                colors: {
-                    'editor.background': '#0d1117',
-                    'editor.foreground': '#fff',
-                    'editorCursor.foreground': '#fff',
-                    'editor.lineHighlightBackground': '#161b22',
-                    'editorLineNumber.foreground': '#6e7681',
-                }
-            });
-
-            monaco.languages.register({ id: 'uniscript' });
-            
-            monaco.languages.setMonarchTokensProvider('uniscript', {
-                defaultToken: '',
-                
-                tokenizer: {
-                    root: [
-                        [/\s+/, 'white'],
-                        [/#[^#]*#/, 'comment'],
-                        [/<!uniscript start!>/, 'keyword'],
-                        [/<!uniscript end!>/, 'keyword'],
-                        
-                        [/<!uniscript\s+[\w]+,\s*js,\s*content\s*=\s*</, { token: 'type.js', next: '@jsState' }],
-
-                        [/<!uniscript\s+[\w]+,\s*py,\s*content\s*=\s*</, { token: 'type.js', next: '@pyState' }],
-
-                        [/<!uniscript\s+[\w]+,\s*ts,\s*content\s*=\s*</, { token: 'type.ts', next: '@tsState' }],
-
-                        [/<!uniscript\s+[\w]+,\s*css,\s*content\s*=\s*</, { token: 'type.css', next: '@cssState' }],
-
-                        [/<!uniscript\s+[\w]+,\s*uniscript,\s*content\s*=\s*</, { token: 'keyword.uniscript', next: '@uniscriptState' }],
-
-                        [/<!uniscript\s+[\w]+,\s*html,\s*content\s*=\s*</, { token: 'type.html', next: '@htmlState' }],
-                        
-                    ],
-
-            uniscriptState: [
-            [/>>;/, { token: 'keyword.uniscript', next: '@pop' }],
-            [/\b(config|declare|use|on)\b/, 'keyword.uniscript'],
-            [/\b(execution|start|then|end|title|version|author|target)\b/, 'type.uniscript'],
-            [/"([^"\\]|\\.)*"/, 'string.uniscript'],
-            [/[{}()\[\]]/, 'delimiter.uniscript'],
-            [/:/, 'operator.uniscript'],
-            [/#.*#/, 'comment'],
-        ],
-
-                    jsState: [
-                        [/\/\/.*\/\//, 'comment'],
-                        [/\/\*.*\*\//, 'comment'],
-                        [/>>;/, { token: 'keyword', next: '@pop' }],
-                        [/"([^"\\]|\\.)*"/, 'string'],
-                        [/'([^'\\]|\\.)*'/, 'string'],
-                        [/`([^`\\]|\\.)*`/, 'string'],
-                        [/\/\/.*$/, 'comment'],
-                        [/\/\*[\s\S]*?\*\//, 'comment'],
-                        [/\b(const|let|var|function|return|if|else|for|while|import|from)\b/, 'keyword.js'],
-                        [/\b(document|window|console|alert)\b/, 'type.js'],
-                        [/[a-zA-Z_$][\w$]*/, 'ident.js'],
-                        [/[0-9]+/, 'number'],
-                        [/[{}()\[\]]/, 'delimiter'],
-                    ],
-
-                    pyState: [
-    [/>>;/, { token: 'type.py', next: '@pop' }],
-    [/#.*$/, 'comment'],
-    [/"([^"\\]|\\.)*"/, 'string.py'],
-    [/'([^'\\]|\\.)*'/, 'string.py'],
-    [/\b(def|class|import|from|if|elif|else|while|for|return|in|is|not|and|or|lambda|global|pass|try|except|print|f)\b/, 'keyword.py'],
-    [/[a-zA-Z_$][\w$]*(?=\s*\()/, 'function.py'],
-    [/[a-zA-Z_$][\w$]*/, 'identifier.py'],
-    [/[{}()\[\]]/, 'delimiter'],
-    [/[0-9]+/, 'number'],
-],
-
-                    tsState: [
-    [/\/\/.*\/\//, 'comment'],
-    [/\/\*.*\*\//, 'comment'],
-    [/>>;/, { token: 'keyword', next: '@pop' }],
-    [/"([^"\\]|\\.)*"/, 'string'],
-    [/'([^'\\]|\\.)*'/, 'string'],
-    [/`([^`\\]|\\.)*`/, 'string'],
-    [/\/\/.*$/, 'comment'],
-    [/\/\*[\s\S]*?\*\//, 'comment'],
-    [/\b(interface|type|enum|namespace|as|declare|abstract|public|private|protected|readonly|const|let|var|function|return|if|else|import|from)\b/, 'keyword.ts'],
-    [/\b(string|number|boolean|any|void|never|unknown|Array|Promise)\b/, 'type.identifier.ts'],
-    [/[A-Z][\w]*/, 'type.identifier.ts'],
-    [/[a-zA-Z_$][\w$]*/, 'ident.ts'],
-    [/[0-9]+/, 'number'],
-    [/[{}()\[\]]/, 'delimiter'],
-],
-
-                    cssState: [
-                        [/\/\*.*\*\//, 'comment'],
-                        [/>>;/, { token: 'keyword', next: '@pop' }],
-                        [/"/, 'string', '@stringDouble'],
-                        [/[#\.][a-zA-Z0-9_-]+/, 'selector.css'],
-                        [/[a-zA-Z-]+(?=:)/, 'prop.css'],
-                        [/[{}()]/, 'delimiter'],
-                        [/import|from/, 'keyword'],
-                    ],
-
-                    htmlState: [
-                        [/<!--[\s\S]*?-->/, 'comment'],
-                        [/>>;/, { token: 'keyword', next: '@pop' }],
-                        [/<\/?[a-zA-Z0-9]+/, 'tag.html'],
-                        [/[a-zA-Z-]+(?==)/, 'attr.html'],
-                        [/"([^"\\]|\\.)*"/, 'string'],
-                        [/[a-z]+:/, 'prop.css'],
-                        [/{|}/, 'delimiter'],
-                        [/>>;/, { token: 'keyword', next: '@pop' }],
-
-    [/(<\/?)(([a-zA-Z0-9]+))/, [
-        { token: 'delimiter.html' },
-        { token: 'tag.html' }
-    ]],
-    
-    [/>/, 'delimiter.html'],
-                ],
-                    
-                    stringDouble: [
-                        [/[^\\"]+/, 'string'],
-                        [/"/, 'string', '@pop']
-                    ]
-                }
-            });
-
-
-            editor = monaco.editor.create(document.getElementById('editor-container'), {
-                value: '<!uniscript start!>\n\n<!uniscript main, uniscript, content = <\nconfig execution = \n{start: "elements",\nthen: "script"}\ndeclare word = "Hello world!"\n>>;\n\n<!uniscript elements, html, content=<\n<h1 id="title"></h1>\n<p>Welcome to uniscript!</p>\n>>;\n\n#No need to configure anything#\n<!uniscript script, ts, content = <\nimport "title" from "elements";\nfunction update(txt: HTMLParagraphElement, text: string): void {\ntxt.textContent = `${text}`;\n}\nupdate(title, word);\n\n>>;\n\n<!uniscript end!>',
-                language: 'uniscript',
-                theme: 'uniscript-neon', 
-                automaticLayout: true,
-                fontSize: 14,
-                minimap: { enabled: true },
-            });
-        });
-
-monaco.languages.register({ id: 'uniscript' });
-
-
-        window.onload = function() {}
-
-        async function handleCompile(mode) {
-            if (!window.UniscriptApp) return;
-            const code = monaco.editor.getModels()[0].getValue();
-            await runProgressBar(code.length);
-            
-            const { UniscriptCompiler, ErrorManager } = window.UniscriptApp;
-            const compiler = new UniscriptCompiler();
-            const errorManager = new ErrorManager('console-host', 'iframe-host');
-            window.appLogger = errorManager;
-
-            errorManager.clear();
-            errorManager.log("Analyzing structure...", "info");
-
-            try {
-                const html = compiler.compile(code);
-                
-                if (mode === 'preview') {
-                    errorManager.log("Running...", "success");
-                    errorManager.runCodeInSandbox(html);
-                } else {
-                    downloadFile("uniscript_page.html", html);
-                    errorManager.log("Download started.", "success");
-                }
-            } catch (e) {
-                errorManager.log(e.message, "error");
-            }
+        :root {
+            --bg: #0d1117;
+            --card-bg: #161b22;
+            --accent: #238636;
+            --accent-hover: #2ea043;
+            --blue: #58a6ff;
+            --text: #c9d1d9;
+            --text-dim: #8b949e;
+            --border: #30363d;
         }
 
-        function runProgressBar(chars) {
-    return new Promise(resolve => {
-        const bar = document.getElementById('progress-bar');
-        const time = Math.max(chars / 2, 200); 
-
-        bar.style.transition = 'none'; 
-        bar.style.width = '0%';
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         
-        setTimeout(() => { 
-            bar.style.transition = `width ${time}ms linear`; 
-            bar.style.width = '100%'; 
-        }, 50);
+        body { 
+            background-color: var(--bg); 
+            color: var(--text); 
+            font-family: 'Inter', -apple-system, system-ui, sans-serif;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
 
-        setTimeout(() => { 
-            setTimeout(() => { bar.style.width = '0%'; }, 150); 
-            resolve(); 
-        }, time + 50);
-    });
-}
-        function downloadFile(f, c) { const a = document.createElement('a'); a.href = 'data:text/html,'+encodeURIComponent(c); a.download=f; a.click(); }
+        /* Navbar */
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: rgba(13, 17, 23, 0.9);
+            backdrop-filter: blur(10px);
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+            border-bottom: 1px solid var(--border);
+        }
 
+        .logo-area { display: flex; align-items: center; gap: 10px; }
+        .logo-area img { width: 30px; height: 30px; }
+        .logo-area span { font-weight: 900; letter-spacing: 2px; font-size: 1.2rem; }
 
+        .nav-links { display: flex; gap: 30px; }
+        .nav-links a { color: var(--text-dim); text-decoration: none; font-size: 0.9rem; transition: 0.3s; }
+        .nav-links a:hover { color: var(--blue); }
+
+        /* Hero Section */
+        .hero {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 0 20px;
+            background: radial-gradient(circle at center, #161b22 0%, #0d1117 100%);
+        }
+
+        .hero h1 { 
+            font-size: 4rem; 
+            font-weight: 800; 
+            margin-bottom: 20px; 
+            background: linear-gradient(90deg, #fff, var(--blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p { 
+            font-size: 1.25rem; 
+            color: var(--text-dim); 
+            max-width: 700px; 
+            margin-bottom: 40px; 
+        }
+
+        .cta-group { display: flex; gap: 20px; }
+
+        .btn {
+            padding: 15px 35px;
+            border-radius: 8px;
+            font-weight: 600;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: 0.3s;
+        }
+
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover { background: var(--accent-hover); transform: translateY(-2px); }
+
+        .btn-secondary { border: 1px solid var(--border); color: var(--text); }
+        .btn-secondary:hover { background: var(--card-bg); border-color: var(--text-dim); }
+
+        /* Features Section */
+        .features {
+            padding: 100px 10%;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+        }
+
+        .feature-card {
+            background: var(--card-bg);
+            padding: 40px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            transition: 0.3s;
+        }
+
+        .feature-card:hover { border-color: var(--blue); transform: translateY(-5px); }
+        .feature-card i { color: var(--blue); font-size: 2.5rem; margin-bottom: 20px; }
+        .feature-card h3 { margin-bottom: 15px; font-size: 1.5rem; }
+        .feature-card p { color: var(--text-dim); }
+
+        /* Footer */
+        footer {
+            padding: 50px 10%;
+            text-align: center;
+            border-top: 1px solid var(--border);
+            color: var(--text-dim);
+            font-size: 0.8rem;
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 2.5rem; }
+            .cta-group { flex-direction: column; width: 100%; }
+            .btn { justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <div class="logo-area">
+            <img src="US.png" alt="Logo">
+            <span>UNISCRIPT</span>
+        </div>
+        <div class="nav-links">
+            <p><a href="https://github.com/LucasHtml116/uniscript">github</a></p>
+            <p><a href="help.html">help</a></p>
+            <p><a href="editor/editor.html">editor</a></p>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <h1>Code Beyond Boundaries</h1>
+        <p>A unified meta-language that harmonizes HTML, CSS, TypeScript, and Python into a single powerful workflow.</p>
         
+        <div class="cta-group">
+            <a href="editor/editor.html" class="btn btn-primary">
+                <i class="material-icons">terminal</i> Open IDE
+            </a>
+            <a href="help.html" class="btn btn-secondary">
+                <i class="material-icons">menu_book</i> Documentation
+            </a>
+        </div>
+    </section>
 
+    <section class="features">
+        <div class="feature-card">
+            <i class="material-icons">bolt</i>
+            <h3>Multi-Engine</h3>
+            <p>Write Python and TypeScript side-by-side. Uniscript orchestrates the compilation and runtime for you.</p>
+        </div>
+        <div class="feature-card">
+            <i class="material-icons">devices</i>
+            <h3>Target Control</h3>
+            <p>Seamlessly switch between Mobile, Computer, and Flex layouts with a single configuration command.</p>
+        </div>
+        <div class="feature-card">
+            <i class="material-icons">share</i>
+            <h3>Global Bridge</h3>
+            <p>Share variables across languages using the <code>declare</code> system. Accessible everywhere, instantly.</p>
+        </div>
+    </section>
 
+    <footer>
+        <p>Uniscript v1.0 2026 Built for the next front-end generation of starters.</p>
+    </footer>
 
-
-function saveProject() {
-    if (!editor) {
-        console.error("Editor não inicializado");
-        return;
-    }
-    
-    const code = editor.getValue();
-    const blob = new Blob([code], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    
-    const titleMatch = code.match(/config\s+title\s*=\s*"([^"]+)"/);
-    const fileName = titleMatch ? `${titleMatch[1]}.us` : "projeto_uniscript.us";
-
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    
-    URL.revokeObjectURL(url);
-}
-
-function loadProject(input) {
-    const file = input.files[0];
-    if (!file || !editor) return;
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const content = e.target.result;
-        editor.setValue(content);
-        input.value = '';
-    };
-    reader.readAsText(file);
-}
-
-
-
-
-
-
-
-
-function toggleMenu(e) {
-    if (e) e.stopPropagation();
-    
-    const menu = document.getElementById('menu-exemplos');
-    const btn = document.getElementById('btn-exemplos');
-    
-    if (menu.innerHTML === "") {
-        examples.forEach((ex) => {
-            const item = document.createElement('button');
-            item.className = 'dropdown-item';
-            item.innerHTML = `<i class="material-icons">code</i> ${ex.name}`;
-            item.onclick = function(ev) {
-                ev.stopPropagation();
-                if (confirm(`Are you sure to load the example "${ex.name}"? if you've been coding, you will lose your text`)) {
-                    if (window.editor) {
-                        window.editor.setValue(ex.code);
-                    } else if (editor) {
-                        editor.setValue(ex.code);
-                    }
-                    menu.classList.remove('show-menu');
-                }
-            };
-            menu.appendChild(item);
-        });
-    }
-
-    const rect = btn.getBoundingClientRect();
-    menu.style.top = (rect.bottom + 5) + "px";
-    menu.style.left = rect.left + "px";
-    
-    menu.classList.toggle('show-menu');
-}
-    </script>
 </body>
 </html>
